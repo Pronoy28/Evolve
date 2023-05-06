@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.19.0/maps/maps.css"
+    />
+    <script src="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.19.0/maps/maps-web.min.js"></script>
+    <script src="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.19.0/services/services-web.min.js"></script>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
+      crossorigin="anonymous"
+    />
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
+      crossorigin="anonymous"
+    ></script>
+
+    <link rel="stylesheet" href="styles/styles.css" />
+
+    <script
+      src="https://kit.fontawesome.com/cb2ba5d205.js"
+      crossorigin="anonymous"
+    ></script>
+
+    <title>Map</title>
+  </head>
+  <body>
+    <div id="wrapper">
+      <div id="mymap"></div>
+
+      <div id="over_map">
+        <div class="top map-area">
+          <div class="input-group input-group-sm mb-3">
+            <input
+              type="text"
+              id="query"
+              class="form-control"
+              placeholder=""
+              aria-label="Recipient's username"
+              aria-describedby="button-addon2"
+            />
+            <button
+              onclick="search()"
+              class="btn btn-outline-secondary fas fa-search-location search-ton"
+              type="button"
+              id="button-addon2"
+            ></button>
+          </div>
+          <button class="btn btn-primary btn-sm ton" onclick="clearMarkers()">
+            Clear Marker
+          </button>
+          <button class="btn btn-primary btn-sm ton" onclick="reachableRange()">
+            Reachable Range
+          </button>
+        </div>
+
+        <div class="middle map-area mt-auto">
+          <button class="btn btn-primary btn-sm ton" onclick="createRoute()">
+            Create Route
+          </button>
+          <button
+            class="btn btn-primary btn-sm ton"
+            onclick="chargingStations()"
+          >
+            Charging Stations
+          </button>
+
+          <table class="table table-borderless">
+            <tbody>
+              <tr>
+                <td><div class="element">Total Distance:</div></td>
+                <td>
+                  <div
+                    class="element"
+                    style="font-size: 0.9rem"
+                    id="distance"
+                  ></div>
+                </td>
+              </tr>
+              <tr>
+                <td><div class="element">Total Chargers:</div></td>
+                <td>
+                  <div
+                    class="element"
+                    style="font-size: 0.9rem"
+                    id="charger"
+                  ></div>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bottom map-area">
+          <button
+            class="btn btn-primary btn-sm ton"
+            style="display: block"
+            onclick="createEVRoute()"
+          >
+            Create EV Route
+          </button>
+          <table class="table table-borderless">
+            <tbody>
+              <tr>
+                <td><div class="element">Total Distance:</div></td>
+                <td><div style="font-size: 0.9rem" id="distance1"></div></td>
+              </tr>
+              <tr>
+                <td><div class="element">Charging Time:</div></td>
+                <td><div style="font-size: 0.9rem" id="time"></div></td>
+              </tr>
+              <tr>
+                <td><div class="element">Remaining Charge:</div></td>
+                <td><div style="font-size: 0.9rem" id="battery"></div></td>
+              </tr>
+              <tr>
+                <td><div class="element">Battery Consumption:</div></td>
+                <td><div style="font-size: 0.9rem" id="consume"></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      var audi = {
+        constantSpeedConsumptionInkWhPerHundredkm: "45,19:100,22.4",
+        vehicleEngineType: "electric",
+        vehicleWeight: 2490,
+        currentChargeInkWh: 43.25,
+        maxChargeInkWh: 95,
+      };
+
+      var APIKEY = "A120YX3x7mvcBhFNXTlCZ1GG8GRGGWcf";
+      var JOSE = [-3.70379, 40.416775];
+      var markColor = "#8CC0DE";
+
+      var map = tt.map({
+        key: APIKEY,
+        center: JOSE,
+        zoom: 14,
+        container: "mymap",
+      });
+
+      var markers = [];
+      // map.on('click',function(event){
+      //     var marker = new tt.Marker({
+      //         // // element: markerElement,
+      //         color: markColor
+      //         })
+      //         .setLngLat(event.lngLat)
+      //         .addTo(map);
+      //     markers.push(marker)
+      //     var location = event.lngLat
+      //     moveMap(location)
+      // })
+
+      var reachableRange = function () {
+        map.on("click", function (event) {
+          var marker = new tt.Marker({
+            // // element: markerElement,
+            color: markColor,
+          })
+            .setLngLat(event.lngLat)
+            .addTo(map);
+          markers.push(marker);
+          var location = event.lngLat;
+          moveMap(location);
+          tt.services
+            .calculateReachableRange({
+              key: APIKEY,
+              origin: location,
+              vehicleEngineType: "electric",
+              constantSpeedConsumptionInkWhPerHundredkm:
+                audi.constantSpeedConsumptionInkWhPerHundredkm,
+              energyBudgetInkWh: audi.currentChargeInkWh,
+            })
+            .then(function (result) {
+              console.log(result);
+              var geojson = result.toGeoJson();
+              if (map.getLayer("reach")) {
+                map.removeLayer("reach");
+                map.removeSource("reach");
+              }
+              map.addLayer({
+                id: "reach",
+                type: "fill",
+                source: {
+                  type: "geojson",
+                  data: geojson,
+                },
+                paint: {
+                  "fill-color": "#FF6FB5",
+                  "fill-opacity": 0.66,
+                  "fill-outline-color": "blue",
+                },
+              });
+            });
+        });
+      };
+
+      var clearMarkers = function () {
+        markers[markers.length - 1].remove();
+        markers.pop();
+      };
+
+      var moveMap = function (lnglat) {
+        map.flyTo({
+          center: lnglat,
+          zoom: 14,
+        });
+      };
+
+      var handleResults = function (result) {
+        if (result.results) {
+          moveMap(result.results[0].position);
+
+          var marker = new tt.Marker({
+            color: markColor,
+          })
+            .setLngLat(result.results[0].position)
+            .addTo(map);
+          markers.push(marker);
+        }
+      };
+
+      var search = function () {
+        tt.services
+          .fuzzySearch({
+            key: APIKEY,
+            query: document.getElementById("query").value,
+          })
+          .then(handleResults);
+      };
+
+      var displayRoute = function (geoJSON) {
+        if (map.getLayer("route")) {
+          map.removeLayer("route");
+          map.removeSource("route");
+        }
+        routeLayer = map.addLayer({
+          id: "route",
+          type: "line",
+          source: {
+            type: "geojson",
+            data: geoJSON,
+          },
+          paint: {
+            "line-color": "#FF6FB5",
+            "line-width": 5,
+          },
+        });
+      };
+
+      var createRoute = function () {
+        var routeOptions = Object.assign(
+          {
+            key: APIKEY,
+            traffic: true,
+            locations: [],
+          },
+          audi
+        );
+
+        for (marker of markers) {
+          routeOptions.locations.push(marker.getLngLat());
+        }
+
+        tt.services.calculateRoute(routeOptions).then(function (routeData) {
+          // console.log(routeData)
+          document.getElementById("distance").innerHTML =
+            routeData.routes[0].summary.lengthInMeters / 1000 + "kms";
+          var geo = routeData.toGeoJson();
+          displayRoute(geo);
+        });
+      };
+
+      var createEVRoute = function () {
+        var routeOptions = Object.assign(
+          {
+            key: APIKEY,
+            traffic: true,
+            locations: [],
+          },
+          audi
+        );
+
+        for (marker of markers) {
+          routeOptions.locations.push(marker.getLngLat());
+        }
+
+        var max = audi.maxChargeInkWh;
+
+        var rOptions = {
+          key: APIKEY,
+          origin: routeOptions.locations[0],
+          destination: routeOptions.locations[1],
+          vehicleWeight: audi.vehicleWeight,
+          currentCharge: max * 0.8,
+          maxCharge: max,
+          minFinalCharge: max * 0.1,
+          minChargeAtStop: max * 0.1,
+          speedConsumption: audi.constantSpeedConsumptionInkWhPerHundredkm,
+          chargingModes: audiChargingModes,
+        };
+
+        calRoute(rOptions);
+      };
+
+      var chargingStations = function () {
+        var routeOptions = Object.assign(
+          {
+            key: APIKEY,
+            traffic: true,
+            locations: [],
+          },
+          audi
+        );
+
+        for (marker of markers) {
+          routeOptions.locations.push(marker.getLngLat());
+        }
+
+        tt.services.calculateRoute(routeOptions).then(function (routeData) {
+          searchChargingStations(routeData);
+        });
+      };
+
+      var searchChargingStations = function (data) {
+        tt.services
+          .alongRouteSearch({
+            key: APIKEY,
+            limit: 20,
+            maxDetourTime: 3000,
+            query: "electric vehicle station",
+            route: data.routes[0].legs[0].points,
+          })
+          .then(function (results) {
+            document.getElementById("charger").innerHTML =
+              results.summary.totalResults;
+            results.results.forEach(function (element) {
+              var marker = new tt.Marker({
+                color: "green",
+              })
+                .setLngLat(element.position)
+                .addTo(map);
+            });
+          });
+      };
+
+      var audiChargingModes = {
+        chargingModes: [
+          {
+            chargingConnections: [
+              {
+                facilityType: "Charge_200_to_240V_1_Phase_at_16A",
+                plugType: "IEC_62196_Type_2_Connector_Cable_Attached",
+              },
+              {
+                facilityType: "Charge_200_to_240V_1_Phase_at_16A",
+                plugType: "Combo_to_IEC_62196_Type_2_Base",
+              },
+              {
+                facilityType: "Charge_200_to_240V_1_Phase_at_16A",
+                plugType: "IEC_62196_Type_2_Outlet",
+              },
+            ],
+            chargingCurve: [
+              {
+                chargeInkWh: 95,
+                timeToChargeInSeconds: 89100,
+              },
+            ],
+          },
+          {
+            chargingConnections: [
+              {
+                facilityType: "Charge_380_to_480V_3_Phase_at_16A",
+                plugType: "IEC_62196_Type_2_Connector_Cable_Attached",
+              },
+              {
+                facilityType: "Charge_380_to_480V_3_Phase_at_16A",
+                plugType: "Combo_to_IEC_62196_Type_2_Base",
+              },
+              {
+                facilityType: "Charge_380_to_480V_3_Phase_at_16A",
+                plugType: "IEC_62196_Type_2_Outlet",
+              },
+            ],
+            chargingCurve: [
+              {
+                chargeInkWh: 95,
+                timeToChargeInSeconds: 53460,
+              },
+            ],
+          },
+          {
+            chargingConnections: [
+              {
+                facilityType: "Charge_200_to_240V_3_Phase_at_32A",
+                plugType: "IEC_62196_Type_2_Connector_Cable_Attached",
+              },
+              {
+                facilityType: "Charge_200_to_240V_3_Phase_at_32A",
+                plugType: "Combo_to_IEC_62196_Type_2_Base",
+              },
+              {
+                facilityType: "Charge_200_to_240V_3_Phase_at_32A",
+                plugType: "IEC_62196_Type_2_Outlet",
+              },
+            ],
+            chargingCurve: [
+              {
+                chargeInkWh: 95,
+                timeToChargeInSeconds: 31080,
+              },
+            ],
+          },
+          {
+            chargingConnections: [
+              {
+                facilityType: "Charge_Direct_Current_above_50kW",
+                plugType: "IEC_62196_Type_2_Connector_Cable_Attached",
+              },
+              {
+                facilityType: "Charge_Direct_Current_above_50kW",
+                plugType: "Combo_to_IEC_62196_Type_2_Base",
+              },
+              {
+                facilityType: "Charge_Direct_Current_above_50kW",
+                plugType: "IEC_62196_Type_2_Outlet",
+              },
+              {
+                facilityType: "Charge_200_to_480V_Direct_Current_at_255A_120kW",
+                plugType: "IEC_62196_Type_2_Connector_Cable_Attached",
+              },
+              {
+                facilityType: "Charge_200_to_480V_Direct_Current_at_255A_120kW",
+                plugType: "Combo_to_IEC_62196_Type_2_Base",
+              },
+              {
+                facilityType: "Charge_200_to_480V_Direct_Current_at_255A_120kW",
+                plugType: "IEC_62196_Type_2_Outlet",
+              },
+            ],
+            chargingCurve: [
+              {
+                chargeInkWh: 95,
+                timeToChargeInSeconds: 1860,
+              },
+            ],
+          },
+        ],
+      };
+
+      var colors = ["green", "black"];
+
+      var drawRoute = function (geojson, color, index) {
+        if (map.getLayer("route" + index)) {
+          map.removeLayer("route" + index);
+          map.removeSource("route" + index);
+        }
+
+        map.addLayer({
+          id: "route" + index,
+          type: "line",
+          source: {
+            type: "geojson",
+            data: geojson,
+          },
+          paint: {
+            "line-color": color,
+            "line-width": 6,
+          },
+        });
+      };
+
+      var baseUrl =
+        "https://api.tomtom.com/routing/1/calculateLongDistanceEVRoute/";
+
+      var bulidURL = function (options) {
+        var url =
+          baseUrl +
+          options.origin.lat +
+          "," +
+          options.origin.lng +
+          ":" +
+          options.destination.lat +
+          "," +
+          options.destination.lng +
+          "/json?vehicleEngineType=electric&travelMode=car&traffic=true&key=" +
+          APIKEY +
+          "&vehicleWeight=" +
+          options.vehicleWeight +
+          "&currentChargeInkWh=" +
+          options.currentCharge +
+          "&maxChargeInkWh=" +
+          options.maxCharge +
+          "&minChargeAtDestinationInkWh=" +
+          options.minFinalCharge +
+          "&minChargeAtChargingStopsInkWh=" +
+          options.minChargeAtStop +
+          "&constantSpeedConsumptionInkWhPerHundredkm=" +
+          options.speedConsumption;
+
+        return url;
+      };
+
+      var calRoute = function (rOptions) {
+        var url = bulidURL(rOptions);
+        postData(url, rOptions.chargingModes)
+          .then((data) => parseRoute(data))
+          .catch((error) => console.error(error));
+      };
+
+      function postData(url = "", data = {}) {
+        return fetch(url, {
+          method: "POST",
+          cache: "no-cache",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        }).then((response) => response.json());
+      }
+
+      var parseRoute = function (data) {
+        // console.log(data);
+        document.getElementById("distance1").innerHTML =
+          Math.round(data.routes[0].summary.lengthInMeters / 1000) + "kms";
+        document.getElementById("time").innerHTML = formatSeconds(
+          data.routes[0].summary.totalChargingTimeInSeconds
+        );
+        document.getElementById("battery").innerHTML =
+          Math.round(
+            (data.routes[0].summary.remainingChargeAtArrivalInkWh * 100) / 95
+          ) + " %";
+        document.getElementById("consume").innerHTML =
+          Math.round(data.routes[0].summary.batteryConsumptionInkWh) + " kwh";
+
+        var route = data.routes[0];
+        for (var index = 0; index < route.legs.length; index++) {
+          var locations = route.legs[index].points.map(function (element) {
+            return [element.longitude, element.latitude];
+          });
+          var geojson = {
+            type: "Feature",
+            geometry: {
+              type: "LineString",
+              coordinates: locations,
+            },
+          };
+
+          drawRoute(geojson, colors[index % 2], index);
+          if (index != 0) {
+            var lngLat = [
+              route.legs[index].points[0].longitude,
+              route.legs[index].points[0].latitude,
+            ];
+            addMarker(
+              lngLat,
+              route.legs[index - 1].summary.chargingInformationAtEndOfLeg
+                .chargingParkName,
+              route.legs[index - 1].summary.chargingInformationAtEndOfLeg
+                .chargingTimeInSeconds,
+              route.legs[index - 1].summary.remainingChargeAtArrivalInkWh
+            );
+          }
+        }
+      };
+
+      // var pointers = []
+      function addMarker(position, parkName, chargingTime, chargeOnArrival) {
+        markers.push(
+          new tt.Marker()
+            .setLngLat(position)
+            .setPopup(
+              new tt.Popup().setText(
+                "Charging Park name: " +
+                  parkName +
+                  "," +
+                  "    charge available at arrival " +
+                  Math.round((chargeOnArrival * 100) / 95) +
+                  "% waiting here for " +
+                  formatSeconds(chargingTime) +
+                  "secs"
+              )
+            )
+            .addTo(map)
+        );
+      }
+
+      function formatSeconds(seconds) {
+        var measuredTime = new Date(null);
+        measuredTime.setSeconds(seconds);
+        return measuredTime.toISOString().substr(11, 8);
+      }
+    </script>
+  </body>
+</html>
